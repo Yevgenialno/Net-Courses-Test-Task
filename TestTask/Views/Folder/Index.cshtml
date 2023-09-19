@@ -1,0 +1,58 @@
+﻿@model List<Folder>
+
+@{
+    <p>@TempData["CurrentFolder"]</p>
+    if (Model != null)
+    {
+        foreach(Folder folder in Model)
+        {
+    <form>
+        <input type="hidden" name="id" value="@folder.Id" />
+        <input type="submit" value="@folder.Name"/>
+    </form>
+        }
+    }
+    <form>
+        <input type="hidden" name="id" value="@TempData["FolderId"]" />
+        <input type="submit" value="Back" />
+    </form>
+    <button id="uploadDirBtn">Upload Directory</button>
+}
+
+<script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
+<script>
+    const btn = document.getElementById("uploadDirBtn");
+    var counter = 0;
+    var foldersToPost = new Array();
+
+    async function addFolder(folderWithId) {
+        for await (const [key, value] of folderWithId.folder.entries()) {
+            if (value.kind == 'directory') {
+                foldersToPost[counter] = { 'Id': counter, 'Name': value.name, 'FolderId': folderWithId.id };
+                await addFolder({ 'folder': value, 'id': counter++ });
+            }
+        }
+    }
+
+    btn.onclick = async function(e) {
+        dirHandle = await window.showDirectoryPicker();
+        let foldersWithIds = { 'folder': dirHandle, 'id': 0 };
+        foldersToPost[0] = { 'Id': 0, 'Name': dirHandle.name, 'FolderId': null };
+        counter++;
+        await addFolder(foldersWithIds);
+        //console.log(foldersToPost);
+        await $.ajax({
+            type: 'DELETE',
+            url: 'Folder/DeleteDirectories'
+        })
+        for (const folder of foldersToPost) {
+            //console.log('posting ', folder.Name);
+            await $.ajax({
+                type: 'POST',
+                data: folder,
+                url: 'Folder/UploadDirectory',
+            });
+        }
+        alert('Directory is uploaded. Reload the page');
+    }
+</script>
